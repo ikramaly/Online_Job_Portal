@@ -27,10 +27,10 @@ const Footer = () => {
             Connecting talent with opportunity. JiViKa is your trusted partner in finding the career you deserve.
           </p>
           <div className="flex space-x-2">
-            <a href="https://github.com/ManishNayak-123" target="_blank" rel="noreferrer">
+            <a href="https://github.com/ikramaly" target="_blank" rel="noreferrer">
               <img className="h-12 w-12 rounded-full border-2 border-transparent hover:border-[#ff9933] transition-all" src={github} alt="github" />
             </a>
-            <a href="https://www.linkedin.com" target="_blank" rel="noreferrer">
+            <a href="https://www.linkedin.com/in/ikram-ali-9b8961273/" target="_blank" rel="noreferrer">
               <img className="h-12 w-12 rounded-full border-2 border-transparent hover:border-[#ff9933] transition-all" src={linkedin} alt="linkedin" />
             </a>
             <a href="https://www.facebook.com" target="_blank" rel="noreferrer">
@@ -88,11 +88,11 @@ const Footer = () => {
             </li>
             <li className="flex items-center">
               <Phone className="w-5 h-5 mr-3 text-[#ff9933]" />
-              <span className="text-sm">+91 82732 35248</span>
+              <span className="text-sm">+91 9536060714</span>
             </li>
             <li className="flex items-center">
               <Mail className="w-5 h-5 mr-3 text-[#ff9933]" />
-              <span className="text-sm">jivikacommunity@gmail.com</span>
+              <span className="text-sm">ikramali91549@gmail.com</span>
             </li>
           </ul>
         </div>

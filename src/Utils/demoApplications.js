@@ -43,17 +43,38 @@ export const readDemoApplications = () => {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     const unique = new Map();
+    let invalidCount = 0;
     parsed.forEach((record) => {
       const normalized = normalizeRecord(record);
-      if (!normalized) return;
+      if (!normalized) {
+        invalidCount += 1;
+        return;
+      }
       const pair = `${normalized.jobId}\u0000${normalized.studentId}`;
       const existing = unique.get(pair);
       if (!existing) unique.set(pair, normalized);
-      else if (!validId(existing.applicationId) && validId(normalized.applicationId)) unique.set(pair, normalized);
+      else {
+        const existingTime = Date.parse(existing.updatedAt || existing.appliedAt) || 0;
+        const nextTime = Date.parse(normalized.updatedAt || normalized.appliedAt) || 0;
+        const status = existing.status === "Pending" ? normalized.status
+          : normalized.status === "Pending" ? existing.status
+            : nextTime > existingTime ? normalized.status : existing.status;
+        const appliedAt = (Date.parse(normalized.appliedAt) || Infinity) < (Date.parse(existing.appliedAt) || Infinity)
+          ? normalized.appliedAt : existing.appliedAt;
+        unique.set(pair, {
+          ...existing,
+          ...normalized,
+          applicationId: existing.applicationId,
+          appliedAt,
+          status,
+        });
+      }
     });
     const records = [...unique.values()];
     const serialized = JSON.stringify(records);
-    if (serialized !== raw) {
+    if (invalidCount) {
+      console.warn(`[JiviKa demo applications] Kept ${records.length} valid record(s), including deduplicated job/student pairs; found ${invalidCount} malformed record(s). Stored data was left unchanged.`);
+    } else if (serialized !== raw) {
       try {
         localStorage.setItem(DEMO_APPLICATIONS_KEY, serialized);
         notifyChanged();
@@ -64,6 +85,7 @@ export const readDemoApplications = () => {
     return records;
   } catch {
     // Leave unreadable storage untouched; a later write must not silently erase it.
+    console.warn("[JiviKa demo applications] Could not parse stored application data; keeping it unchanged.");
     return [];
   }
 };

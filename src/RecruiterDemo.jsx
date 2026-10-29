@@ -54,14 +54,17 @@ const RecruiterDemo = () => {
   const selectedApplications = selectedJob ? applications
     .filter((application) => application.jobId === (selectedJob.id || selectedJob._id))
     .filter((application) => !selectedJob.recruiterId || application.recruiterId === selectedJob.recruiterId) : [];
+  const canManageSelectedApplications = Boolean(selectedJob?.recruiterId && selectedJob.recruiterId === user?._id);
 
-  useEffect(() => {
+  const saveJobsAfterAction = (nextJobs) => {
     try {
-      saveDemoJobs(jobs);
+      saveDemoJobs(nextJobs);
+      return true;
     } catch {
       toast.error("Browser storage is full. Remove a large profile image or clear unused demo data.");
+      return false;
     }
-  }, [jobs]);
+  };
 
   const changeHandler = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
   const openNewJobForm = () => {
@@ -109,9 +112,11 @@ const RecruiterDemo = () => {
       ...(previousJob?.archivedAt ? { archivedAt: previousJob.archivedAt } : {}),
     };
 
-    setJobs((current) => editingId
-      ? current.map((item) => (item.id || item._id) === editingId ? job : item)
-      : [job, ...current]);
+    const nextJobs = editingId
+      ? jobs.map((item) => (item.id || item._id) === editingId ? job : item)
+      : [job, ...jobs];
+    saveJobsAfterAction(nextJobs);
+    setJobs(nextJobs);
     setShowForm(false);
     setEditingId(null);
     setForm(emptyJob);
@@ -119,16 +124,20 @@ const RecruiterDemo = () => {
   };
 
   const archiveJob = (id) => {
-    setJobs((current) => current.map((job) => (job.id || job._id) === id ? { ...job, archivedAt: new Date().toISOString() } : job));
+    const nextJobs = jobs.map((job) => (job.id || job._id) === id ? { ...job, archivedAt: new Date().toISOString() } : job);
+    saveJobsAfterAction(nextJobs);
+    setJobs(nextJobs);
     if (selectedJobId === id) setSelectedJobId(null);
     toast.success("Job archived. Application history has been kept.");
   };
 
   const restoreJob = (id) => {
-    setJobs((current) => current.map((job) => {
+    const nextJobs = jobs.map((job) => {
       if ((job.id || job._id) !== id) return job;
       return Object.fromEntries(Object.entries(job).filter(([key]) => key !== "archivedAt"));
-    }));
+    });
+    saveJobsAfterAction(nextJobs);
+    setJobs(nextJobs);
     toast.success("Job restored to the student listings.");
   };
 
@@ -148,6 +157,10 @@ const RecruiterDemo = () => {
   };
 
   const changeApplicationStatus = (application, status) => {
+    if (!canManageSelectedApplications) {
+      toast.info("Legacy sample jobs are shared. Applicant status changes are unavailable because this job has no owner.");
+      return;
+    }
     if (busyApplicationId) return;
     if (application.status === status) return;
     if (status === "Rejected" && !window.confirm("Reject this application? The student will see the updated status.")) return;
@@ -220,6 +233,7 @@ const RecruiterDemo = () => {
             <div><h2 className="text-lg font-bold text-slate-900">Applicants · {selectedJob.title}</h2><p className="text-sm text-slate-500">{selectedApplications.length} real application{selectedApplications.length === 1 ? "" : "s"} · Legacy jobs without an owner are visible in this demo workspace.</p><p className="mt-1 text-xs text-slate-500">Accepted means shortlisted for the role; it does not mean the student was hired.</p></div>
             <button type="button" onClick={() => setSelectedJobId(null)} className="self-start rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Close applicant list"><X size={18} /></button>
           </div>
+          {!canManageSelectedApplications && <p className="border-b border-amber-100 bg-amber-50 px-5 py-3 text-sm text-amber-900">This shared legacy job has no recruiter owner. You can review applications, but cannot change their status.</p>}
           {selectedApplications.length === 0 ? <p className="p-8 text-center text-slate-500">No students have applied to this job yet.</p> : <div className="divide-y divide-slate-100">
             {selectedApplications.map((application) => {
               const student = applicantDetails(application.studentId);
@@ -228,8 +242,8 @@ const RecruiterDemo = () => {
                 <div className="min-w-0"><h3 className="font-bold text-slate-900">{student.fullname || "Student"}</h3><p className="text-sm text-slate-600">{student.email || "Email unavailable"} · {student.phoneNumber || "Phone unavailable"}</p><p className="mt-1 text-xs text-slate-500">Applied {new Date(application.appliedAt).toLocaleString()} · Status: <span className="font-bold">{status}</span></p><p className="mt-1 text-sm text-slate-600">{student.profile?.bio || "No bio added."}</p>{student.profile?.skills?.length > 0 && <p className="mt-1 text-xs text-slate-500">Skills: {student.profile.skills.join(", ")}</p>}</div>
                 <div className="flex flex-wrap items-center gap-2">
                   {student.profile?.resumeOriginalName && <button type="button" disabled={Boolean(loadingResumeId)} onClick={() => previewResume(application.studentId)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{loadingResumeId === application.studentId ? "Opening..." : "View Resume"}</button>}
-                  <button type="button" disabled={Boolean(busyApplicationId) || status === "Accepted"} onClick={() => changeApplicationStatus(application, "Accepted")} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Accept</button>
-                  <button type="button" disabled={Boolean(busyApplicationId) || status === "Rejected"} onClick={() => changeApplicationStatus(application, "Rejected")} className="rounded-lg bg-rose-600 px-3 py-2 text-sm font-bold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50">Reject</button>
+                  <button type="button" disabled={!canManageSelectedApplications || Boolean(busyApplicationId) || status === "Accepted"} onClick={() => changeApplicationStatus(application, "Accepted")} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Accept</button>
+                  <button type="button" disabled={!canManageSelectedApplications || Boolean(busyApplicationId) || status === "Rejected"} onClick={() => changeApplicationStatus(application, "Rejected")} className="rounded-lg bg-rose-600 px-3 py-2 text-sm font-bold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50">Reject</button>
                 </div>
               </article>;
             })}
@@ -248,8 +262,8 @@ const RecruiterDemo = () => {
             return <article key={jobId} className={`flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between ${job.archivedAt ? "bg-slate-50 opacity-80" : ""}`}><div className="flex items-start gap-3"><span className="mt-1 rounded-xl border border-slate-100 bg-white p-2 text-[#387780]"><Building2 size={22} /></span><div><h3 className="font-bold text-slate-900">{job.title} {job.archivedAt && <span className="ml-2 rounded-full bg-slate-200 px-2 py-1 text-xs text-slate-600">Archived</span>}</h3><p className="mt-1 text-sm text-slate-500">{job.company?.name || "JiViKa Demo"} · {job.location} · {job.jobType}</p><p className="mt-1 text-xs text-slate-500">₹{job.salary} LPA · {job.position} opening(s) · {job.experienceLevel || "Experience not specified"}{!job.recruiterId && <span> · Legacy job (no owner)</span>}</p></div></div><div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
               <button type="button" onClick={() => setSelectedJobId(jobId)} className="flex items-center gap-1 rounded-full bg-[#387780]/10 px-3 py-1.5 text-sm font-semibold text-[#387780] hover:bg-[#387780]/20"><Users size={16} /> {realCount} actual applicants</button>
               <span className="rounded-full bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700">{Number(job.applicants) || 0} sample</span>
-              {!job.archivedAt && <button type="button" aria-label={`Edit ${job.title}`} onClick={() => openEditForm(job)} className="rounded-lg p-2 text-[#387780] hover:bg-[#387780]/10"><Pencil size={18} /></button>}
-              {job.archivedAt ? <button type="button" onClick={() => restoreJob(jobId)} className="rounded-lg px-3 py-2 text-sm font-semibold text-[#387780] hover:bg-[#387780]/10">Restore</button> : <button type="button" aria-label={`Archive ${job.title}`} onClick={() => archiveJob(jobId)} className="rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 size={18} /></button>}
+              {job.recruiterId === user?._id && !job.archivedAt && <button type="button" aria-label={`Edit ${job.title}`} onClick={() => openEditForm(job)} className="rounded-lg p-2 text-[#387780] hover:bg-[#387780]/10"><Pencil size={18} /></button>}
+              {job.recruiterId === user?._id && (job.archivedAt ? <button type="button" onClick={() => restoreJob(jobId)} className="rounded-lg px-3 py-2 text-sm font-semibold text-[#387780] hover:bg-[#387780]/10">Restore</button> : <button type="button" aria-label={`Archive ${job.title}`} onClick={() => archiveJob(jobId)} className="rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 size={18} /></button>)}
             </div></article>;
           })}</div>
           {visibleJobs.length === 0 && <p className="p-8 text-center text-slate-500">No jobs yet. Post your first listing.</p>}

@@ -8,6 +8,17 @@ import React, { useEffect } from 'react';
 import { Download, Save, Share2 } from 'lucide-react';
 import { useNavigate } from "react-router";
 import { useSelector } from "react-redux";
+
+const getSkillNames = (skills) => {
+  if (typeof skills === "string") return skills.split(",").map((skill) => skill.trim()).filter(Boolean);
+  if (Array.isArray(skills)) return skills.flatMap(getSkillNames);
+  if (!skills || typeof skills !== "object") return [];
+
+  const label = skills.name ?? skills.label ?? skills.skill ?? skills.skillName ?? skills.title ?? skills.value ?? skills.text;
+  if (typeof label === "string") return getSkillNames(label);
+  return ["technical", "soft", "languages"].flatMap((category) => getSkillNames(skills[category]));
+};
+
 function ResumeBuilder() {
    const navigate = useNavigate();
   const {user} = useSelector(store => store.user);
@@ -26,11 +37,7 @@ function ResumeBuilder() {
     "portfolio": "",
     "summary": ""
   },
-  "skills": {
-    "technical": [],
-    "soft": [],
-    "languages": []
-  },
+  "skills": "",
   "experience": [
     {
       "company": "",
@@ -81,7 +88,8 @@ function ResumeBuilder() {
   useEffect(() => {
     const savedData = localStorage.getItem('jivika_resume_draft');
     if (savedData) {
-      setResumeData(JSON.parse(savedData));
+      const parsedData = JSON.parse(savedData);
+      setResumeData({ ...parsedData, skills: getSkillNames(parsedData.skills).join(", ") });
     }
   }, []);
 

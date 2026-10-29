@@ -84,8 +84,18 @@ const rootReducer = combineReducers({
   application:applicationSlice,
 });
 
+// Drop cached/API data when the signed-in demo identity changes, while keeping
+// the persisted user slice and browser-owned demo records intact.
+export const resetTransientAccountState = () => ({ type: "session/resetTransientAccountState" });
+const appReducer = (state, action) => {
+  if (action.type === "session/resetTransientAccountState" && state) {
+    state = { ...state, job: undefined, company: undefined, application: undefined };
+  }
+  return rootReducer(state, action);
+};
+
 // ✅ wrap with persistReducer
-const persistedReducer = persistReducer(persistConfig, rootReducer);
+const persistedReducer = persistReducer(persistConfig, appReducer);
 
 // ✅ create store
 export const store = configureStore({

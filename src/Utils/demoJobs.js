@@ -20,7 +20,7 @@ export const starterDemoJobs = [
     id: "demo-job-2",
     _id: "demo-job-2",
     title: "UI/UX Designer",
-    company: { _id: "jivika-demo", name: "JiViKa Demo", logo: "" },
+    company: { _id: "jivika-demo", name: "Wipro", logo: "" },
     location: "Bengaluru",
     jobType: "Full-time",
     salary: 7,
@@ -33,13 +33,32 @@ export const starterDemoJobs = [
   },
 ];
 
+const validText = (value) => typeof value === "string" && value.trim().length > 0;
+
 export const readDemoJobs = () => {
   try {
-    const storedJobs = JSON.parse(localStorage.getItem(DEMO_JOBS_KEY) || "null");
-    if (!Array.isArray(storedJobs)) return starterDemoJobs;
-    return storedJobs.map((job, index) => {
+    const raw = localStorage.getItem(DEMO_JOBS_KEY);
+    if (!raw) return starterDemoJobs;
+    const storedJobs = JSON.parse(raw);
+    if (!Array.isArray(storedJobs)) {
+      console.warn("[JiviKa demo jobs] Stored job data is not a list; keeping it unchanged and showing starter jobs.");
+      return starterDemoJobs;
+    }
+    const invalidIndexes = [];
+    const jobs = storedJobs.flatMap((job, index) => {
+      if (!job || typeof job !== "object" || Array.isArray(job) || !validText(job.title)) {
+        invalidIndexes.push(index);
+        return [];
+      }
       const id = job.id || job._id || `migrated-demo-job-${index}`;
-      return {
+      const salary = job.salary === undefined || job.salary === null || job.salary === "" ? 8 : Number(job.salary);
+      const position = Number(job.position);
+      const applicants = Number(job.applicants);
+      if (!validText(id) || !Number.isFinite(salary) || salary < 0 || (job.position !== undefined && (!Number.isFinite(position) || position < 1))) {
+        invalidIndexes.push(index);
+        return [];
+      }
+      return [{
         ...job,
         id,
         _id: id,
@@ -47,16 +66,21 @@ export const readDemoJobs = () => {
           ? { _id: "demo-company", name: job.company, logo: "" }
           : { _id: "demo-company", name: job.company?.name || "JiViKa Demo", logo: job.company?.logo || "" },
         jobType: job.jobType || job.type || "Full-time",
-        salary: job.salary === undefined || job.salary === null || job.salary === "" ? 8 : Number(job.salary),
+        salary,
         experienceLevel: job.experienceLevel || job.experience || "Not specified",
-        position: Number(job.position) || 1,
+        position: Number.isFinite(position) && position >= 1 ? position : 1,
         description: job.description || "Join the team and contribute to meaningful product work. This is a sample listing for the local demo.",
         requirements: job.requirements || "Relevant experience, clear communication, and a willingness to learn.",
-        applicants: Number(job.applicants) || 0,
+        applicants: Number.isFinite(applicants) && applicants >= 0 ? applicants : 0,
         createdAt: job.createdAt || new Date().toISOString(),
-      };
+      }];
     });
+    if (invalidIndexes.length) {
+      console.warn(`[JiviKa demo jobs] Kept ${jobs.length} valid job record(s); skipped ${invalidIndexes.length} malformed record(s) at index(es): ${invalidIndexes.join(", ")}. Stored data was left unchanged.`);
+    }
+    return jobs;
   } catch {
+    console.warn("[JiviKa demo jobs] Could not parse stored job data; keeping it unchanged and showing starter jobs.");
     return starterDemoJobs;
   }
 };

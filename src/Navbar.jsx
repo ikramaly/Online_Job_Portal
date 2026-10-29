@@ -298,6 +298,7 @@ import { toast } from "react-toastify";
 import { setUser } from "./Redux/userSlice";
 import { useEffect } from "react";
 import { logoutDemoAccount } from "./Utils/demoAuth";
+import { resetTransientAccountState } from "./Redux/store";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -348,6 +349,7 @@ useEffect(() => {
 
   const logoutHandler = async () => {
     logoutDemoAccount();
+    dispatch(resetTransientAccountState());
     dispatch(setUser(null));
     navigate("/");
     toast.success("Signed out of demo account.");

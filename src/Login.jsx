@@ -5,6 +5,7 @@ import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import { setUser } from "./Redux/userSlice";
 import { loginDemoAccount } from "./Utils/demoAuth";
+import { resetTransientAccountState } from "./Redux/store";
 
 const Login = ({ isOpen = true, onClose, onSwitchToSignup }) => {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ const Login = ({ isOpen = true, onClose, onSwitchToSignup }) => {
     setLoading(true);
     try {
       const sessionUser = await loginDemoAccount(input);
+      dispatch(resetTransientAccountState());
       dispatch(setUser(sessionUser));
       toast.success(`Welcome, ${sessionUser.fullname}!`);
       navigate(sessionUser.role === "recruiter" ? "/recruiter-dashboard" : "/");
